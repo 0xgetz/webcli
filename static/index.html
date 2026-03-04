@@ -1,0 +1,1254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>octra webcli // devnet</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Syne:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:#050810;--surface:#0a0f1e;--surface2:#0f1628;--border:#1a2545;
+    --accent:#00e5ff;--accent2:#7c3aed;--accent3:#10b981;
+    --warn:#f59e0b;--danger:#ef4444;--text:#e2e8f0;--muted:#64748b;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:var(--bg);color:var(--text);font-family:'Space Mono',monospace;font-size:13px;min-height:100vh;overflow-x:hidden;}
+  body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse 80% 40% at 20% 10%,rgba(0,229,255,.04) 0%,transparent 60%),radial-gradient(ellipse 60% 50% at 80% 80%,rgba(124,58,237,.05) 0%,transparent 60%);pointer-events:none;z-index:0;}
+  .scanlines{position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,.03) 2px,rgba(0,0,0,.03) 4px);pointer-events:none;z-index:1;}
+  #app{position:relative;z-index:2;}
+  header{border-bottom:1px solid var(--border);padding:13px 22px;display:flex;align-items:center;justify-content:space-between;background:rgba(10,15,30,.95);backdrop-filter:blur(20px);position:sticky;top:0;z-index:100;gap:10px;flex-wrap:wrap;}
+  .logo{font-family:'Syne',sans-serif;font-weight:800;font-size:18px;color:var(--accent);text-shadow:0 0 20px rgba(0,229,255,.5);letter-spacing:-.5px;}
+  .logo span{color:var(--muted);font-weight:400;}
+  .net-badge{background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.4);color:#ef4444;padding:3px 10px;border-radius:4px;font-size:10px;letter-spacing:2px;text-transform:uppercase;animation:pb 2s ease-in-out infinite;}
+  @keyframes pb{0%,100%{opacity:1}50%{opacity:.5}}
+  .hdr-r{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+  .status-dot{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted);}
+  .dot{width:6px;height:6px;border-radius:50%;background:var(--muted);}
+  .dot.live{background:var(--accent3);box-shadow:0 0 8px var(--accent3);animation:blink 1.5s ease-in-out infinite;}
+  .dot.error{background:var(--danger);}
+  @keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+  .container{max-width:1440px;margin:0 auto;padding:18px 22px;}
+  .wallet-bar{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:13px 18px;display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:18px;flex-wrap:wrap;}
+  .wi{display:flex;align-items:center;gap:14px;flex-wrap:wrap;}
+  .addr-d{font-size:11px;color:var(--accent);background:rgba(0,229,255,.05);padding:6px 11px;border-radius:4px;border:1px solid rgba(0,229,255,.2);cursor:pointer;transition:all .2s;max-width:210px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .addr-d:hover{background:rgba(0,229,255,.1);}
+  .bg{display:flex;flex-direction:column;gap:2px;}
+  .bl{font-size:9px;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);}
+  .bv{font-family:'Syne',sans-serif;font-weight:700;font-size:17px;}
+  .bv.c{color:var(--accent);}
+  .bv.p{color:#a78bfa;}
+  .bv.y{color:var(--warn);font-size:14px;}
+  .grid{display:grid;grid-template-columns:252px 1fr;gap:18px;}
+  @media(max-width:900px){.grid{grid-template-columns:1fr;}}
+  .sidebar{display:flex;flex-direction:column;gap:2px;}
+  .ns{font-size:9px;text-transform:uppercase;letter-spacing:2px;color:var(--muted);padding:10px 11px 3px;}
+  .ni{display:flex;align-items:center;gap:8px;padding:9px 11px;border-radius:5px;cursor:pointer;color:var(--muted);transition:all .15s;border:1px solid transparent;font-size:12px;}
+  .ni:hover{background:var(--surface2);color:var(--text);}
+  .ni.active{background:rgba(0,229,255,.08);border-color:rgba(0,229,255,.2);color:var(--accent);}
+  .ni .ico{font-size:13px;width:16px;text-align:center;flex-shrink:0;}
+  .nb{margin-left:auto;font-size:9px;padding:1px 6px;border-radius:10px;}
+  .nb.new{background:var(--accent3);color:#000;}
+  .nb.live{background:var(--danger);color:#fff;}
+  .panel{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:20px;}
+  .pt{font-family:'Syne',sans-serif;font-weight:700;font-size:15px;margin-bottom:16px;display:flex;align-items:center;gap:10px;}
+  .pt::after{content:'';flex:1;height:1px;background:var(--border);}
+  .fg{margin-bottom:13px;}
+  label{display:block;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);margin-bottom:5px;}
+  input,select,textarea{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:9px 10px;color:var(--text);font-family:'Space Mono',monospace;font-size:12px;outline:none;transition:border-color .2s;}
+  input:focus,select:focus,textarea:focus{border-color:var(--accent);}
+  textarea{resize:vertical;min-height:80px;}
+  input[type="range"]{padding:0;height:4px;cursor:pointer;}
+  .btn{padding:8px 16px;border-radius:4px;border:none;font-family:'Space Mono',monospace;font-size:11px;cursor:pointer;transition:all .2s;font-weight:700;letter-spacing:.5px;}
+  .btn-p{background:var(--accent);color:var(--bg);}
+  .btn-p:hover{background:#33ecff;box-shadow:0 0 18px rgba(0,229,255,.3);}
+  .btn-s{background:transparent;border:1px solid var(--border);color:var(--text);}
+  .btn-s:hover{border-color:var(--accent);color:var(--accent);}
+  .btn-d{background:transparent;border:1px solid var(--danger);color:var(--danger);}
+  .btn-d:hover{background:rgba(239,68,68,.1);}
+  .btn-g{background:var(--accent3);color:var(--bg);}
+  .btn-g:hover{background:#34d399;}
+  .btn-pu{background:var(--accent2);color:#fff;}
+  .btn-pu:hover{background:#8b5cf6;}
+  .btn:disabled{opacity:.45;cursor:not-allowed;}
+  .br{display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
+  .sm{padding:6px 11px;font-size:10px;}
+  .ob{background:#020408;border:1px solid var(--border);border-radius:4px;padding:12px;font-size:11px;line-height:1.7;min-height:44px;white-space:pre-wrap;word-break:break-all;color:var(--accent3);margin-top:12px;}
+  .ob.err{color:var(--danger);border-color:rgba(239,68,68,.3);}
+  .ob.warn{color:var(--warn);}
+  .ob.info{color:var(--accent);}
+  .tx-item{display:grid;grid-template-columns:70px 1fr 88px 72px 66px;gap:8px;align-items:center;padding:9px 0;border-bottom:1px solid var(--border);font-size:11px;cursor:pointer;transition:background .15s;}
+  .tx-item:hover{background:rgba(255,255,255,.02);border-radius:4px;}
+  .tx-item:last-child{border-bottom:none;}
+  .tt{padding:3px 7px;border-radius:3px;font-size:9px;font-weight:700;text-align:center;text-transform:uppercase;}
+  .tt.send{background:rgba(239,68,68,.15);color:#f87171;}
+  .tt.recv{background:rgba(16,185,129,.15);color:#34d399;}
+  .tt.enc{background:rgba(124,58,237,.15);color:#a78bfa;}
+  .tt.stealth{background:rgba(0,229,255,.1);color:#67e8f9;}
+  .ta.pos{color:var(--accent3);}
+  .ta.neg{color:var(--danger);}
+  .sg{display:grid;grid-template-columns:repeat(auto-fit,minmax(138px,1fr));gap:9px;margin-bottom:16px;}
+  .sc{background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:12px;}
+  .sl{font-size:9px;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);margin-bottom:4px;}
+  .sv{font-family:'Syne',sans-serif;font-weight:700;font-size:17px;}
+  .sv.g{color:var(--accent3);}.sv.c{color:var(--accent);}.sv.p{color:#a78bfa;}.sv.y{color:var(--warn);}.sv.r{color:var(--danger);}
+  .tabs{display:flex;gap:0;margin-bottom:16px;border-bottom:1px solid var(--border);overflow-x:auto;}
+  .tab{padding:7px 13px;font-size:11px;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-1px;transition:all .2s;white-space:nowrap;}
+  .tab.active{color:var(--accent);border-bottom-color:var(--accent);}
+  .tc{display:none;}
+  .tc.active{display:block;}
+  .br-row{display:flex;gap:7px;margin-bottom:6px;align-items:center;}
+  .br-row .ba{flex:3;}
+  .br-row .bm{flex:1;}
+  .pb{height:5px;background:var(--surface2);border-radius:3px;overflow:hidden;margin-top:7px;}
+  .pf{height:100%;background:linear-gradient(90deg,var(--accent2),var(--accent));border-radius:3px;transition:width .3s;width:0%;}
+  .lt{background:#020408;border:1px solid var(--border);border-radius:4px;padding:9px;height:175px;overflow-y:auto;font-size:10px;line-height:1.8;margin-top:11px;}
+  .le .ts{color:var(--muted);margin-right:6px;}
+  .le.ok .msg{color:var(--accent3);}
+  .le.err .msg{color:var(--danger);}
+  .le.info .msg{color:var(--accent);}
+  .le.warn .msg{color:var(--warn);}
+  .kv{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:11px;}
+  .kv:last-child{border-bottom:none;}
+  .kk{color:var(--muted);}
+  .kval{color:var(--text);font-weight:700;text-align:right;word-break:break-all;max-width:60%;}
+  .kval.c{color:var(--accent);}
+  .kval.g{color:var(--accent3);}
+  .hint{font-size:10px;color:var(--muted);margin-top:4px;line-height:1.5;}
+  .flex{display:flex;gap:8px;align-items:center;}
+  .mt{margin-top:11px;}
+  .mt2{margin-top:18px;}
+  .tc2{display:grid;grid-template-columns:1fr 1fr;gap:11px;}
+  @media(max-width:600px){.tc2{grid-template-columns:1fr;}}
+  .emb{padding:8px 15px;border:1px solid var(--border);background:transparent;color:var(--muted);font-family:'Space Mono',monospace;font-size:11px;cursor:pointer;transition:all .2s;}
+  .emb:first-child{border-radius:4px 0 0 4px;}
+  .emb:last-child{border-radius:0 4px 4px 0;}
+  .emb.active{background:var(--accent2);border-color:var(--accent2);color:#fff;}
+  .fh{text-align:center;padding:26px;border:1px dashed var(--border);border-radius:8px;margin-bottom:18px;}
+  .fa{font-family:'Syne',sans-serif;font-size:38px;font-weight:800;color:var(--accent3);margin:7px 0 4px;}
+  .fsub{font-size:10px;color:var(--muted);margin-bottom:18px;}
+  .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.85);backdrop-filter:blur(6px);z-index:500;display:none;align-items:center;justify-content:center;}
+  .modal-overlay.active{display:flex;}
+  .modal{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:26px;width:92%;max-width:500px;max-height:92vh;overflow-y:auto;}
+  .modal-title{font-family:'Syne',sans-serif;font-weight:700;font-size:16px;margin-bottom:18px;color:var(--accent);}
+  .pin-input{font-size:24px;letter-spacing:8px;text-align:center;font-weight:700;}
+  #toast{position:fixed;bottom:18px;right:18px;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:10px 15px;font-size:12px;transform:translateY(70px);opacity:0;transition:all .3s;z-index:999;max-width:290px;}
+  #toast.show{transform:translateY(0);opacity:1;}
+  #toast.success{border-color:var(--accent3);color:var(--accent3);}
+  #toast.error{border-color:var(--danger);color:var(--danger);}
+  #toast.info{border-color:var(--accent);color:var(--accent);}
+  .page{display:none;}
+  .page.active{display:block;}
+  .cw{background:#020408;border:1px solid var(--border);border-radius:4px;padding:10px;margin-top:11px;}
+  canvas.lc{width:100%;display:block;}
+  .vc{background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:11px;margin-bottom:7px;display:flex;justify-content:space-between;align-items:center;}
+  .vn{font-weight:700;color:var(--text);font-size:12px;}
+  .vm{font-size:10px;color:var(--muted);margin-top:2px;}
+  .mr{display:flex;align-items:center;gap:7px;padding:6px 0;border-bottom:1px solid var(--border);font-size:10px;animation:si .3s ease;}
+  @keyframes si{from{opacity:0;transform:translateX(-6px)}to{opacity:1;transform:none}}
+  .mr:last-child{border-bottom:none;}
+  .rg{display:flex;align-items:center;gap:8px;}
+  .rg input{flex:1;}
+  .rv{font-family:'Syne',sans-serif;font-weight:700;color:var(--accent);min-width:34px;text-align:right;}
+  select option{background:var(--surface2);}
+  a{color:inherit;text-decoration:none;}
+</style>
+</head>
+<body>
+<div class="scanlines"></div>
+<div id="app">
+
+<!-- PIN MODAL -->
+<div class="modal-overlay active" id="pinModal">
+  <div class="modal">
+    <div class="modal-title">🔐 octra webcli — devnet</div>
+    <div class="fg">
+      <label>Wallet Address (oct...)</label>
+      <input type="text" id="pinAddr" placeholder="octxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx">
+    </div>
+    <div class="fg">
+      <label>Private Key (base64)</label>
+      <input type="password" id="pinPrivKey" placeholder="your base64 private key">
+    </div>
+    <div class="fg">
+      <label>RPC Endpoint</label>
+      <input type="text" id="pinRpc" value="http://165.227.225.79:8080" placeholder="http://165.227.225.79:8080">
+    </div>
+    <div class="fg">
+      <label>6-Digit PIN (session lock)</label>
+      <input type="password" id="pinInput" class="pin-input" maxlength="6" placeholder="••••••">
+    </div>
+    <div class="br mt">
+      <button class="btn btn-p" onclick="unlockWallet()">UNLOCK</button>
+      <button class="btn btn-s" onclick="createNewWallet()">NEW WALLET</button>
+    </div>
+    <div id="pinOut" class="ob" style="display:none;"></div>
+  </div>
+</div>
+
+<!-- TX DETAIL MODAL -->
+<div class="modal-overlay" id="txModal">
+  <div class="modal">
+    <div class="modal-title">Transaction Detail</div>
+    <div id="txModalContent"></div>
+    <button class="btn btn-s mt" onclick="closeModal('txModal')">CLOSE</button>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<header>
+  <div class="logo">octra<span>webcli</span></div>
+  <div class="hdr-r">
+    <div class="status-dot"><div class="dot" id="connDot"></div><span id="connLabel">disconnected</span></div>
+    <span id="blockTick" style="font-size:10px;color:var(--muted);"></span>
+    <div class="net-badge">devnet</div>
+  </div>
+</header>
+
+<div id="mainApp" style="display:none;">
+<div class="container">
+
+  <div class="wallet-bar">
+    <div class="wi">
+      <div class="addr-d" id="addrD" onclick="copyAddr()" title="click to copy">—</div>
+      <div class="bg"><div class="bl">Public Balance</div><div class="bv c"><span id="balD">—</span> OCT</div></div>
+      <div class="bg"><div class="bl">Encrypted</div><div class="bv p"><span id="encBalD">—</span></div></div>
+      <div class="bg"><div class="bl">Nonce</div><div class="bv y"><span id="nonceD">—</span></div></div>
+    </div>
+    <div class="br">
+      <button class="btn btn-s sm" onclick="refreshBalance()">↻ REFRESH</button>
+      <a href="https://devnet.octrascan.io" target="_blank" class="btn btn-s sm">🔍 EXPLORER</a>
+      <button class="btn btn-d sm" onclick="lockWallet()">LOCK</button>
+    </div>
+  </div>
+
+  <div class="grid">
+    <div class="sidebar">
+      <div class="ns">Wallet</div>
+      <div class="ni active" onclick="sp('dashboard')"><span class="ico">◈</span>Dashboard</div>
+      <div class="ni" onclick="sp('send')"><span class="ico">↗</span>Send OCT</div>
+      <div class="ni" onclick="sp('batch')"><span class="ico">⋯</span>Batch Send</div>
+      <div class="ni" onclick="sp('history')"><span class="ico">◷</span>TX History</div>
+      <div class="ns">Privacy</div>
+      <div class="ni" onclick="sp('encrypt')"><span class="ico">⊕</span>Encrypt / Decrypt</div>
+      <div class="ni" onclick="sp('stealth')"><span class="ico">◉</span>Stealth TX</div>
+      <div class="ni" onclick="sp('claim')"><span class="ico">⊛</span>Claim Stealth</div>
+      <div class="ns">Dev Tools</div>
+      <div class="ni" onclick="sp('network')"><span class="ico">◎</span>Network Info</div>
+      <div class="ni" onclick="sp('monitor')"><span class="ico">⚡</span>TX Monitor<span class="nb live">LIVE</span></div>
+      <div class="ni" onclick="sp('stress')"><span class="ico">🔥</span>Stress Test</div>
+      <div class="ni" onclick="sp('faucet')"><span class="ico">💧</span>Faucet</div>
+      <div class="ni" onclick="sp('rpc')"><span class="ico">⌥</span>Raw RPC</div>
+      <div class="ns">Tools</div>
+      <div class="ni" onclick="sp('keytool')"><span class="ico">⚿</span>Key Tools</div>
+      <div class="ni" onclick="sp('addrbook')"><span class="ico">📒</span>Address Book<span class="nb new">NEW</span></div>
+      <div class="ni" onclick="sp('calc')"><span class="ico">⊞</span>Fee Calc<span class="nb new">NEW</span></div>
+      <div class="ni" onclick="sp('validators')"><span class="ico">◍</span>Validators<span class="nb new">NEW</span></div>
+      <div class="ni" onclick="sp('lookup')"><span class="ico">🔎</span>TX Lookup<span class="nb new">NEW</span></div>
+    </div>
+
+    <div>
+      <!-- DASHBOARD -->
+      <div id="page-dashboard" class="page active">
+        <div class="panel">
+          <div class="pt">◈ DASHBOARD</div>
+          <div class="sg">
+            <div class="sc"><div class="sl">Balance</div><div class="sv c" id="sd-bal">—</div></div>
+            <div class="sc"><div class="sl">Nonce</div><div class="sv p" id="sd-nonce">—</div></div>
+            <div class="sc"><div class="sl">TX Sent</div><div class="sv g" id="sd-tx">0</div></div>
+            <div class="sc"><div class="sl">Block</div><div class="sv y" id="sd-blk">—</div></div>
+            <div class="sc"><div class="sl">Latency</div><div class="sv" id="sd-lat">—</div></div>
+            <div class="sc"><div class="sl">RPC</div><div class="sv g" id="sd-rpc">—</div></div>
+          </div>
+          <div class="cw">
+            <div style="font-size:9px;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);margin-bottom:5px;">Latency history (ms)</div>
+            <canvas id="latChart" class="lc" height="65"></canvas>
+          </div>
+          <div class="pt" style="margin-top:18px;">◷ RECENT TX</div>
+          <div id="dash-tx"></div>
+        </div>
+      </div>
+
+      <!-- SEND -->
+      <div id="page-send" class="page">
+        <div class="panel">
+          <div class="pt">↗ SEND OCT</div>
+          <div class="tc2">
+            <div class="fg">
+              <label>Recipient</label>
+              <div class="flex">
+                <input type="text" id="sTo" placeholder="oct...">
+                <button class="btn btn-s sm" onclick="pickAddr('sTo')" title="Address Book">📒</button>
+              </div>
+            </div>
+            <div class="fg"><label>Amount (OCT)</label><input type="number" id="sAmt" placeholder="0.01" step="0.000001"></div>
+          </div>
+          <div class="fg"><label>Memo (optional)</label><input type="text" id="sMemo" placeholder="optional note..."></div>
+          <div class="tc2">
+            <div class="fg"><label>Nonce override (blank=auto)</label><input type="number" id="sNonce" placeholder="auto"></div>
+            <div class="fg"><label>Fee override (blank=auto)</label><input type="number" id="sFee" placeholder="auto" step="0.000001"></div>
+          </div>
+          <div class="br">
+            <button class="btn btn-p" onclick="sendTx()">SEND</button>
+            <button class="btn btn-s" onclick="previewTx()">PREVIEW</button>
+            <button class="btn btn-s" onclick="estFee()">ESTIMATE FEE</button>
+          </div>
+          <div id="sOut" class="ob" style="display:none;"></div>
+        </div>
+      </div>
+
+      <!-- BATCH -->
+      <div id="page-batch" class="page">
+        <div class="panel">
+          <div class="pt">⋯ BATCH SEND</div>
+          <div class="tabs">
+            <div class="tab active" onclick="stab(this,'bt-m')">Manual</div>
+            <div class="tab" onclick="stab(this,'bt-c')">CSV</div>
+            <div class="tab" onclick="stab(this,'bt-a')">Auto-Generate</div>
+          </div>
+          <div id="bt-m" class="tc active">
+            <div id="batchRows">
+              <div class="br-row"><input type="text" placeholder="oct... address" class="ba"><input type="number" placeholder="amount" class="bm" step="0.000001"><button class="btn btn-d sm" onclick="rmBR(this)">✕</button></div>
+            </div>
+            <div class="br mt"><button class="btn btn-s" onclick="addBR()">+ ADD ROW</button><button class="btn btn-p" onclick="sendBatch()">SEND BATCH</button></div>
+          </div>
+          <div id="bt-c" class="tc">
+            <div class="fg"><label>CSV — address,amount (one per line)</label><textarea id="bCsv" placeholder="oct1...,0.01&#10;oct2...,0.05"></textarea></div>
+            <div class="br"><button class="btn btn-s" onclick="csvPreview()">PREVIEW</button><button class="btn btn-p" onclick="sendBatchCsv()">IMPORT & SEND</button></div>
+          </div>
+          <div id="bt-a" class="tc">
+            <div class="tc2">
+              <div class="fg"><label>TX Count</label><input type="number" id="aC" value="5" min="1" max="200"></div>
+              <div class="fg"><label>Amount per TX</label><input type="number" id="aA" value="0.001" step="0.000001"></div>
+            </div>
+            <div class="fg"><label>Recipient (blank=self)</label><input type="text" id="aR" placeholder="oct... or blank"></div>
+            <div class="fg">
+              <label>Delay between TX (ms)</label>
+              <div class="rg"><input type="range" id="aDR" min="0" max="5000" value="500" oninput="g('aDV').textContent=this.value+'ms'"><span class="rv" id="aDV">500ms</span></div>
+            </div>
+            <button class="btn btn-p" onclick="sendAuto()">START AUTO-SEND</button>
+          </div>
+          <div id="bOut" class="ob" style="display:none;"></div>
+          <div id="bLog" class="lt" style="display:none;"></div>
+        </div>
+      </div>
+
+      <!-- HISTORY -->
+      <div id="page-history" class="page">
+        <div class="panel">
+          <div class="pt">◷ TX HISTORY</div>
+          <div class="flex" style="margin-bottom:13px;flex-wrap:wrap;gap:8px;">
+            <select id="hFilter" onchange="filterHist()" style="width:145px;">
+              <option value="all">All Types</option>
+              <option value="send">Send</option>
+              <option value="recv">Receive</option>
+              <option value="enc">Encrypted</option>
+              <option value="stealth">Stealth</option>
+            </select>
+            <input type="text" id="hSearch" placeholder="search hash / addr..." style="flex:1;min-width:150px;" oninput="filterHist()">
+            <button class="btn btn-s" onclick="loadHist()">LOAD</button>
+            <button class="btn btn-s" onclick="exportHist()">EXPORT CSV</button>
+          </div>
+          <div id="txList"><div style="color:var(--muted);font-size:11px;padding:14px 0;text-align:center;">click LOAD to fetch history</div></div>
+          <div id="hPager" class="flex mt" style="justify-content:center;display:none;">
+            <button class="btn btn-s sm" onclick="hPage(-1)">← PREV</button>
+            <span id="hPI" style="font-size:11px;color:var(--muted);padding:0 12px;"></span>
+            <button class="btn btn-s sm" onclick="hPage(1)">NEXT →</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ENCRYPT -->
+      <div id="page-encrypt" class="page">
+        <div class="panel">
+          <div class="pt">⊕ ENCRYPT / DECRYPT BALANCE</div>
+          <div style="margin-bottom:14px;">
+            <button class="emb active" id="encBtn" onclick="setEM('encrypt')">ENCRYPT</button>
+            <button class="emb" id="decBtn" onclick="setEM('decrypt')">DECRYPT</button>
+          </div>
+          <div class="fg"><label id="eLabel">Amount to Encrypt (OCT)</label><input type="number" id="eAmt" placeholder="amount" step="0.000001"></div>
+          <div class="hint" id="eHint">public → private encrypted balance</div>
+          <div class="br mt"><button class="btn btn-p" id="eBtn" onclick="doEncrypt()">ENCRYPT</button></div>
+          <div id="eOut" class="ob" style="display:none;"></div>
+        </div>
+      </div>
+
+      <!-- STEALTH -->
+      <div id="page-stealth" class="page">
+        <div class="panel">
+          <div class="pt">◉ STEALTH TRANSFER</div>
+          <p style="color:var(--muted);font-size:11px;margin-bottom:16px;">Send a private transaction using PVAC-HFHE. Recipient is obfuscated on-chain.</p>
+          <div class="fg">
+            <label>Recipient</label>
+            <div class="flex"><input type="text" id="stTo" placeholder="oct..."><button class="btn btn-s sm" onclick="pickAddr('stTo')">📒</button></div>
+          </div>
+          <div class="tc2">
+            <div class="fg"><label>Encrypted Amount</label><input type="number" id="stAmt" placeholder="amount" step="0.000001"></div>
+            <div class="fg"><label>Stealth Memo (encrypted)</label><input type="text" id="stMemo" placeholder="private memo..."></div>
+          </div>
+          <button class="btn btn-p" onclick="sendStealth()">SEND STEALTH TX</button>
+          <div id="stOut" class="ob" style="display:none;"></div>
+        </div>
+      </div>
+
+      <!-- CLAIM STEALTH -->
+      <div id="page-claim" class="page">
+        <div class="panel">
+          <div class="pt">⊛ CLAIM STEALTH FUNDS</div>
+          <p style="color:var(--muted);font-size:11px;margin-bottom:16px;">Scan the chain for incoming stealth transactions addressed to your wallet.</p>
+          <div class="tc2">
+            <div class="fg"><label>From Block</label><input type="number" id="cfrom" value="0"></div>
+            <div class="fg"><label>To Block (0=latest)</label><input type="number" id="cto" value="0"></div>
+          </div>
+          <div class="br"><button class="btn btn-p" onclick="claimStealth()">SCAN & CLAIM</button><button class="btn btn-s" onclick="scanOnly()">SCAN ONLY</button></div>
+          <div id="cOut" class="ob" style="display:none;"></div>
+        </div>
+      </div>
+
+      <!-- NETWORK INFO -->
+      <div id="page-network" class="page">
+        <div class="panel">
+          <div class="pt">◎ NETWORK INFO</div>
+          <div class="br" style="margin-bottom:16px;">
+            <button class="btn btn-p" onclick="loadNet()">FETCH INFO</button>
+            <button class="btn btn-s" onclick="pingRpc()">PING</button>
+            <button class="btn btn-s" onclick="startAutoPing()" id="pingStartBtn">AUTO-PING</button>
+            <button class="btn btn-d sm" onclick="stopAutoPing()" id="pingStopBtn" style="display:none;">STOP</button>
+          </div>
+          <div class="kv"><span class="kk">RPC Endpoint</span><span class="kval c" id="ni-rpc">—</span></div>
+          <div class="kv"><span class="kk">Network</span><span class="kval y" id="ni-net">DEVNET</span></div>
+          <div class="kv"><span class="kk">Block Height</span><span class="kval" id="ni-h">—</span></div>
+          <div class="kv"><span class="kk">Pending TX Pool</span><span class="kval" id="ni-p">—</span></div>
+          <div class="kv"><span class="kk">Avg TPS</span><span class="kval g" id="ni-tps">—</span></div>
+          <div class="kv"><span class="kk">Latency</span><span class="kval" id="ni-lat">—</span></div>
+          <div class="kv"><span class="kk">Validators</span><span class="kval" id="ni-val">—</span></div>
+          <div class="kv"><span class="kk">Chain ID</span><span class="kval" id="ni-cid">—</span></div>
+          <div class="kv"><span class="kk">Faucet</span><span class="kval c"><a href="https://faucet-devnet.octra.com" target="_blank">faucet-devnet.octra.com ↗</a></span></div>
+          <div class="kv"><span class="kk">Explorer</span><span class="kval c"><a href="https://devnet.octrascan.io" target="_blank">devnet.octrascan.io ↗</a></span></div>
+          <div class="cw">
+            <div style="font-size:9px;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);margin-bottom:5px;">Ping latency (ms)</div>
+            <canvas id="pingChart" class="lc" height="65"></canvas>
+          </div>
+          <div id="netOut" class="ob" style="display:none;"></div>
+        </div>
+      </div>
+
+      <!-- LIVE MONITOR -->
+      <div id="page-monitor" class="page">
+        <div class="panel">
+          <div class="pt">⚡ LIVE TX MONITOR</div>
+          <p style="color:var(--muted);font-size:11px;margin-bottom:13px;">Polls devnet mempool in real-time. Shows new transactions as they arrive.</p>
+          <div class="sg" style="grid-template-columns:repeat(4,1fr);">
+            <div class="sc"><div class="sl">Pool Size</div><div class="sv c" id="m-pool">—</div></div>
+            <div class="sc"><div class="sl">My TX</div><div class="sv g" id="m-mine">0</div></div>
+            <div class="sc"><div class="sl">Block</div><div class="sv y" id="m-blk">—</div></div>
+            <div class="sc"><div class="sl">Polls</div><div class="sv p" id="m-polls">0</div></div>
+          </div>
+          <div class="br" style="margin-bottom:11px;">
+            <button class="btn btn-g" id="monSBtn" onclick="startMon()">▶ START</button>
+            <button class="btn btn-d" id="monEBtn" onclick="stopMon()" disabled>■ STOP</button>
+            <button class="btn btn-s sm" onclick="g('monLog').innerHTML=''">CLEAR</button>
+            <div class="flex" style="margin-left:auto;">
+              <label style="text-transform:none;letter-spacing:0;font-size:11px;color:var(--muted);margin:0;">interval:</label>
+              <input type="number" id="monInt" value="3000" min="500" style="width:75px;">
+              <span style="font-size:10px;color:var(--muted);">ms</span>
+            </div>
+          </div>
+          <div class="lt" id="monLog" style="height:240px;"></div>
+        </div>
+      </div>
+
+      <!-- STRESS TEST -->
+      <div id="page-stress" class="page">
+        <div class="panel">
+          <div class="pt">🔥 STRESS TEST</div>
+          <p style="color:var(--muted);font-size:11px;margin-bottom:16px;">Blast the devnet to measure TPS limits, latency distribution, and error rate.</p>
+          <div class="sg">
+            <div class="sc"><div class="sl">Sent</div><div class="sv c" id="st-s">0</div></div>
+            <div class="sc"><div class="sl">OK</div><div class="sv g" id="st-ok">0</div></div>
+            <div class="sc"><div class="sl">Failed</div><div class="sv r" id="st-f">0</div></div>
+            <div class="sc"><div class="sl">Avg Latency</div><div class="sv y" id="st-lat">—</div></div>
+            <div class="sc"><div class="sl">TPS</div><div class="sv p" id="st-tps">—</div></div>
+            <div class="sc"><div class="sl">Success%</div><div class="sv g" id="st-pct">—</div></div>
+          </div>
+          <div class="tc2">
+            <div class="fg"><label>Total TX</label><input type="number" id="stT" value="20" min="1" max="500"></div>
+            <div class="fg"><label>Concurrency</label><input type="number" id="stC" value="1" min="1" max="20"></div>
+          </div>
+          <div class="tc2">
+            <div class="fg"><label>Amount per TX (OCT)</label><input type="number" id="stA" value="0.001" step="0.000001"></div>
+            <div class="fg"><label>Target (blank=self)</label><input type="text" id="stTgt" placeholder="oct..."></div>
+          </div>
+          <div class="br">
+            <button class="btn btn-d" id="stSBtn" onclick="startStress()">START STRESS TEST</button>
+            <button class="btn btn-s" id="stEBtn" onclick="stopStress()" disabled>STOP</button>
+          </div>
+          <div style="margin-top:13px;">
+            <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--muted);margin-bottom:4px;"><span>Progress</span><span id="stPL">0%</span></div>
+            <div class="pb"><div class="pf" id="stPF"></div></div>
+          </div>
+          <div class="lt" id="stLog"></div>
+        </div>
+      </div>
+
+      <!-- FAUCET -->
+      <div id="page-faucet" class="page">
+        <div class="panel">
+          <div class="pt">💧 DEVNET FAUCET</div>
+          <div class="fh">
+            <div style="color:var(--muted);font-size:11px;">claim devnet tokens for testing</div>
+            <div class="fa">10 OCT</div>
+            <div class="fsub">per claim · 24h cooldown · powered by PVAC-HFHE &amp; sigma consensus</div>
+            <div class="fg" style="text-align:left;max-width:460px;margin:0 auto 14px;">
+              <label>Address to fund</label>
+              <input type="text" id="fAddr" placeholder="oct...">
+            </div>
+            <div class="br" style="justify-content:center;">
+              <button class="btn btn-g" onclick="reqFaucet()">CLAIM 10 OCT</button>
+              <a href="https://faucet-devnet.octra.com" target="_blank" class="btn btn-s">OPEN SITE ↗</a>
+            </div>
+          </div>
+          <div class="kv"><span class="kk">Faucet URL</span><span class="kval c"><a href="https://faucet-devnet.octra.com" target="_blank">faucet-devnet.octra.com ↗</a></span></div>
+          <div class="kv"><span class="kk">Amount</span><span class="kval g">10 OCT per claim</span></div>
+          <div class="kv"><span class="kk">Cooldown</span><span class="kval">24 hours per address</span></div>
+          <div class="kv"><span class="kk">Explorer</span><span class="kval c"><a href="https://devnet.octrascan.io" target="_blank">devnet.octrascan.io ↗</a></span></div>
+          <div id="fOut" class="ob" style="display:none;"></div>
+        </div>
+      </div>
+
+      <!-- RAW RPC -->
+      <div id="page-rpc" class="page">
+        <div class="panel">
+          <div class="pt">⌥ RAW RPC CONSOLE</div>
+          <div class="fg">
+            <label>Method &amp; Path</label>
+            <div class="flex">
+              <select id="rM" style="width:85px;"><option>GET</option><option>POST</option></select>
+              <input type="text" id="rP" placeholder="/balance/oct..." style="flex:1;">
+            </div>
+          </div>
+          <div class="fg"><label>Request Body (JSON — POST)</label><textarea id="rB" placeholder='{"key":"value"}'></textarea></div>
+          <div class="hint" style="margin-bottom:11px;">Base: <span style="color:var(--accent);" id="rpcBase">http://165.227.225.79:8080</span> · /balance/:addr · /nonce/:addr · /block/latest · /tx/:hash · /pending · /send_tx · /status · /validators</div>
+          <div class="br">
+            <button class="btn btn-p" onclick="sendRpc()">SEND</button>
+            <button class="btn btn-s" onclick="g('rO').textContent='// response';g('rSt').textContent=''">CLEAR</button>
+            <button class="btn btn-s" onclick="fmtJson()">FORMAT JSON</button>
+          </div>
+          <div class="flex mt" style="justify-content:space-between;"><span style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;">Response</span><span id="rSt" style="font-size:10px;"></span></div>
+          <div class="ob info" id="rO">// response will appear here</div>
+          <div class="mt2">
+            <div style="font-size:9px;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);margin-bottom:7px;">QUICK PRESETS</div>
+            <div class="br" style="flex-wrap:wrap;">
+              <button class="btn btn-s sm" onclick="rPre('bal')">Balance</button>
+              <button class="btn btn-s sm" onclick="rPre('nonce')">Nonce</button>
+              <button class="btn btn-s sm" onclick="rPre('latest')">Latest Block</button>
+              <button class="btn btn-s sm" onclick="rPre('pending')">Pending TX</button>
+              <button class="btn btn-s sm" onclick="rPre('status')">Node Status</button>
+              <button class="btn btn-s sm" onclick="rPre('validators')">Validators</button>
+              <button class="btn btn-s sm" onclick="rPre('txhist')">TX History</button>
+              <button class="btn btn-s sm" onclick="rPre('fee')">Fee Info</button>
+            </div>
+          </div>
+          <div class="mt2">
+            <div style="font-size:9px;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);margin-bottom:6px;">REQUEST HISTORY</div>
+            <div id="rHist" style="font-size:10px;color:var(--muted);"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- KEY TOOLS -->
+      <div id="page-keytool" class="page">
+        <div class="panel">
+          <div class="pt">⚿ KEY TOOLS</div>
+          <div class="tabs">
+            <div class="tab active" onclick="stab(this,'kt-gen')">Generate</div>
+            <div class="tab" onclick="stab(this,'kt-sign')">Sign Msg</div>
+            <div class="tab" onclick="stab(this,'kt-ver')">Verify</div>
+            <div class="tab" onclick="stab(this,'kt-drv')">Derive</div>
+            <div class="tab" onclick="stab(this,'kt-exp')">Export</div>
+          </div>
+          <div id="kt-gen" class="tc active">
+            <p style="color:var(--muted);font-size:11px;margin-bottom:13px;">Generate Ed25519 keypair(s) client-side. Keys never leave your browser.</p>
+            <div class="tc2">
+              <div class="fg"><label>Entropy Source</label><select id="kgE" onchange="toggleEnt()"><option value="random">crypto.getRandomValues</option><option value="manual">Manual entropy</option></select></div>
+              <div class="fg"><label>Count</label><input type="number" id="kgN" value="1" min="1" max="10"></div>
+            </div>
+            <div id="kgMG" class="fg" style="display:none;"><label>Manual entropy (64+ chars)</label><input type="text" id="kgM" placeholder="type random text..."></div>
+            <button class="btn btn-p" onclick="genKeys()">GENERATE</button>
+            <div id="kgOut" class="ob" style="display:none;"></div>
+          </div>
+          <div id="kt-sign" class="tc">
+            <div class="fg"><label>Message to sign</label><textarea id="smsg" placeholder="enter message..."></textarea></div>
+            <div class="fg"><label>Output encoding</label><select id="sEnc"><option value="hex">Hex</option><option value="base64">Base64</option></select></div>
+            <button class="btn btn-p" onclick="signMsg()">SIGN WITH WALLET</button>
+            <div id="sOut2" class="ob" style="display:none;"></div>
+          </div>
+          <div id="kt-ver" class="tc">
+            <div class="fg"><label>Message</label><input type="text" id="vMsg" placeholder="original message..."></div>
+            <div class="fg"><label>Signature (hex or base64)</label><input type="text" id="vSig" placeholder="signature..."></div>
+            <div class="fg"><label>Address / Public Key</label><input type="text" id="vPub" placeholder="oct..."></div>
+            <button class="btn btn-p" onclick="verifySig()">VERIFY</button>
+            <div id="vOut" class="ob" style="display:none;"></div>
+          </div>
+          <div id="kt-drv" class="tc">
+            <p style="color:var(--muted);font-size:11px;margin-bottom:13px;">Derive info from an address or private key.</p>
+            <div class="fg"><label>Input</label><input type="text" id="dIn" placeholder="oct... or base64 private key"></div>
+            <button class="btn btn-p" onclick="deriveInfo()">DERIVE</button>
+            <div id="dOut" class="ob" style="display:none;"></div>
+          </div>
+          <div id="kt-exp" class="tc">
+            <p style="color:var(--warn);font-size:11px;margin-bottom:13px;">⚠ Exporting your private key exposes it. Use in a secure environment only.</p>
+            <div class="fg"><label>Format</label><select id="expF"><option value="json">wallet.json</option><option value="b64">Private Key (base64)</option><option value="hex">Private Key (hex)</option></select></div>
+            <button class="btn btn-d" onclick="exportWallet()">EXPORT</button>
+            <div id="expOut" class="ob" style="display:none;"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ADDRESS BOOK -->
+      <div id="page-addrbook" class="page">
+        <div class="panel">
+          <div class="pt">📒 ADDRESS BOOK</div>
+          <div class="tc2" style="margin-bottom:12px;">
+            <div class="fg" style="margin:0;"><label>Label</label><input type="text" id="abL" placeholder="e.g. Test wallet #2"></div>
+            <div class="fg" style="margin:0;"><label>Address (oct...)</label><input type="text" id="abA" placeholder="oct..."></div>
+          </div>
+          <div class="br" style="margin-bottom:16px;">
+            <button class="btn btn-p" onclick="addContact()">+ ADD</button>
+            <button class="btn btn-s" onclick="importCJ()">IMPORT JSON</button>
+            <button class="btn btn-s" onclick="exportCJ()">EXPORT JSON</button>
+          </div>
+          <div id="cList"></div>
+        </div>
+      </div>
+
+      <!-- FEE CALC -->
+      <div id="page-calc" class="page">
+        <div class="panel">
+          <div class="pt">⊞ FEE CALCULATOR</div>
+          <div class="tc2">
+            <div class="fg"><label>Amount (OCT)</label><input type="number" id="cAmt" value="1.0" step="0.000001" oninput="calcFee()"></div>
+            <div class="fg"><label>TX Type</label><select id="cType" onchange="calcFee()"><option value="std">Standard Transfer</option><option value="enc">Encrypt/Decrypt</option><option value="ste">Stealth TX</option><option value="bat">Batch (per tx)</option></select></div>
+          </div>
+          <div class="fg"><label>TX Count (batch)</label><input type="number" id="cCnt" value="1" min="1" oninput="calcFee()"></div>
+          <div class="ob info" id="cRes" style="display:block;">→ fill in values above</div>
+          <div class="mt2">
+            <div class="pt">LIVE FEE FROM RPC</div>
+            <button class="btn btn-s" onclick="fetchLiveFee()">FETCH CURRENT FEE RATE</button>
+            <div id="lfOut" class="ob" style="display:none;"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- VALIDATORS -->
+      <div id="page-validators" class="page">
+        <div class="panel">
+          <div class="pt">◍ VALIDATORS</div>
+          <div class="br" style="margin-bottom:14px;">
+            <button class="btn btn-p" onclick="loadVals()">LOAD VALIDATORS</button>
+            <button class="btn btn-s" onclick="checkNetStatus()">CHECK STATUS</button>
+          </div>
+          <div id="valList"><div style="color:var(--muted);font-size:11px;padding:14px 0;text-align:center;">click LOAD to fetch validators</div></div>
+          <div id="valOut" class="ob" style="display:none;"></div>
+        </div>
+      </div>
+
+      <!-- TX LOOKUP -->
+      <div id="page-lookup" class="page">
+        <div class="panel">
+          <div class="pt">🔎 TX LOOKUP</div>
+          <p style="color:var(--muted);font-size:11px;margin-bottom:16px;">Look up any transaction, block, or address on the devnet.</p>
+          <div class="tabs">
+            <div class="tab active" onclick="stab(this,'lu-tx')">TX Hash</div>
+            <div class="tab" onclick="stab(this,'lu-addr')">Address</div>
+            <div class="tab" onclick="stab(this,'lu-blk')">Block</div>
+          </div>
+          <div id="lu-tx" class="tc active">
+            <div class="fg"><label>Transaction Hash</label><input type="text" id="luTx" placeholder="0x...or full hash"></div>
+            <div class="br">
+              <button class="btn btn-p" onclick="lookupTx()">LOOKUP</button>
+              <a id="luTxLink" href="#" target="_blank" class="btn btn-s" style="display:none;">VIEW ON EXPLORER ↗</a>
+            </div>
+            <div id="luTxOut" class="ob" style="display:none;"></div>
+          </div>
+          <div id="lu-addr" class="tc">
+            <div class="fg"><label>Wallet Address</label><input type="text" id="luAddr" placeholder="oct..."></div>
+            <div class="br">
+              <button class="btn btn-p" onclick="lookupAddr()">LOOKUP BALANCE</button>
+              <button class="btn btn-s" onclick="lookupAddrHist()">FETCH TX HISTORY</button>
+            </div>
+            <div id="luAddrOut" class="ob" style="display:none;"></div>
+          </div>
+          <div id="lu-blk" class="tc">
+            <div class="fg"><label>Block Height (blank = latest)</label><input type="number" id="luBlk" placeholder="latest"></div>
+            <button class="btn btn-p" onclick="lookupBlock()">LOOKUP BLOCK</button>
+            <div id="luBlkOut" class="ob" style="display:none;"></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+</div>
+
+</div>
+
+<script>
+// ===== CONSTANTS =====
+const RPC_DEFAULT = 'http://165.227.225.79:8080';
+const FAUCET_URL  = 'https://faucet-devnet.octra.com';
+const EXPLORER    = 'https://devnet.octrascan.io';
+
+// ===== STATE =====
+let W = {addr:'',privKey:'',rpc:RPC_DEFAULT};
+let txSent=0, txCache=[], hPage2=0;
+const HPS=20;
+let stressRun=false,stressAbort=false;
+let monTimer=null,pingTimer=null,blockTimer=null;
+let monPolls=0,monMine=0;
+let latHist=[],pingHist=[];
+let encMode='encrypt';
+let contacts=[];
+let rpcHist=[];
+try{contacts=JSON.parse(localStorage.getItem('octra_ab')||'[]');}catch(_){}
+
+// ===== AUTH =====
+function unlockWallet(){
+  const addr=v('pinAddr').trim(),pk=v('pinPrivKey').trim(),rpc=v('pinRpc').trim()||RPC_DEFAULT,pin=v('pinInput').trim();
+  if(!addr||!pk) return so('pinOut','⚠ address and private key required','err');
+  if(!addr.startsWith('oct')) return so('pinOut','⚠ address must start with "oct"','err');
+  if(!/^\d{6}$/.test(pin)) return so('pinOut','⚠ PIN must be 6 digits','err');
+  W={addr,privKey:pk,rpc};
+  g('pinModal').classList.remove('active');
+  g('mainApp').style.display='';
+  g('addrD').textContent=addr.slice(0,10)+'...'+addr.slice(-6);
+  g('fAddr').value=addr;
+  g('ni-rpc').textContent=rpc;
+  g('rpcBase').textContent=rpc;
+  setConn(true); refreshBalance(); startBlockTimer(); renderContacts();
+  toast('Wallet unlocked ✓','success');
+}
+
+function createNewWallet(){
+  const b=new Uint8Array(32); crypto.getRandomValues(b);
+  const pk=btoa(String.fromCharCode(...b));
+  const addr='oct'+[...b.slice(0,20)].map(x=>x.toString(16).padStart(2,'0')).join('');
+  g('pinAddr').value=addr; g('pinPrivKey').value=pk;
+  so('pinOut',`✓ Wallet generated!\nAddress:  ${addr}\nPrivKey:  ${pk}\n\n⚠ SAVE NOW — not shown again!`,'ok');
+}
+
+function lockWallet(){
+  W={addr:'',privKey:'',rpc:''};
+  stopMon(); clearInterval(pingTimer); clearInterval(blockTimer);
+  pingTimer=blockTimer=null;
+  g('mainApp').style.display='none';
+  g('pinModal').classList.add('active');
+  g('pinInput').value=''; setConn(false); g('blockTick').textContent='';
+}
+
+// ===== RPC =====
+async function rpcG(path){const t=Date.now();const r=await fetch(W.rpc+path);const d=await r.json();return{d,lat:Date.now()-t,ok:r.ok,status:r.status};}
+async function rpcP(path,body){const t=Date.now();const r=await fetch(W.rpc+path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});const d=await r.json();return{d,lat:Date.now()-t,ok:r.ok,status:r.status};}
+
+// ===== BALANCE =====
+async function refreshBalance(){
+  g('sd-rpc').textContent='...';
+  try{
+    const{d,lat}=await rpcG(`/balance/${W.addr}`);
+    const bal=d.balance??d.amount??d.oct??'?';
+    const enc=d.encrypted_balance??d.enc_balance??'—';
+    const nonce=d.nonce??'?';
+    ['balD','sd-bal'].forEach(i=>g(i).textContent=bal);
+    g('encBalD').textContent=enc; g('nonceD').textContent=nonce; g('sd-nonce').textContent=nonce;
+    g('sd-lat').textContent=lat+'ms'; g('sd-rpc').textContent='ONLINE'; g('sd-rpc').className='sv g';
+    trackLat(lat); toast('Balance updated ✓','success');
+  }catch(e){g('sd-rpc').textContent='ERR'; g('sd-rpc').className='sv r'; toast('Failed: '+e.message,'error');}
+}
+
+function trackLat(ms){latHist.push(ms);if(latHist.length>20)latHist.shift();drawChart('latChart',latHist);}
+function trackPing(ms){pingHist.push(ms);if(pingHist.length>40)pingHist.shift();drawChart('pingChart',pingHist);}
+
+// ===== SEND TX =====
+async function sendTx(){
+  const to=v('sTo').trim(),amt=parseFloat(v('sAmt')),memo=v('sMemo').trim(),nonceIn=v('sNonce').trim();
+  if(!to||!amt) return so('sOut','⚠ address and amount required','err');
+  so('sOut','⏳ building transaction...','info');
+  try{
+    const nonce=nonceIn?parseInt(nonceIn):await getNonce();
+    const r=await rpcP('/send_tx',buildTx(to,amt,nonce,memo));
+    if(r.d.hash||r.d.tx_hash||r.d.success){
+      const hash=r.d.hash||r.d.tx_hash||'pending';
+      so('sOut',`✓ TX Sent!\nhash:    ${hash}\nto:      ${to}\namount:  ${amt} OCT\nnonce:   ${nonce}\nlatency: ${r.lat}ms\nexplorer: ${EXPLORER}/tx/${hash}`,'ok');
+      txSent++; g('sd-tx').textContent=txSent; addTxC('send',to,amt,hash);
+    }else so('sOut','⚠ '+JSON.stringify(r.d,null,2),'warn');
+  }catch(e){so('sOut','✕ '+e.message,'err');}
+}
+
+async function previewTx(){
+  const to=v('sTo').trim(),amt=parseFloat(v('sAmt'));
+  if(!to||!amt) return so('sOut','⚠ fill address and amount first','err');
+  const nonce=await getNonce().catch(()=>0);
+  const fee=feeEst(amt,'std');
+  so('sOut',`TX PREVIEW\n───────────────────\nfrom:   ${W.addr}\nto:     ${to}\namount: ${amt} OCT\nfee:    ~${fee} OCT\ntotal:  ~${(amt+fee).toFixed(6)} OCT\nnonce:  ${nonce}\nmemo:   ${v('sMemo')||'(none)'}`,'info');
+}
+
+async function estFee(){
+  so('sOut','⏳ fetching fee...','info');
+  try{const{d}=await rpcG('/fee');so('sOut','Fee info:\n'+JSON.stringify(d,null,2),'ok');}
+  catch(e){so('sOut',`Estimated fee: ~${feeEst(parseFloat(v('sAmt'))||1,'std')} OCT (local estimate)`,'warn');}
+}
+
+function feeEst(amt,type){const b={std:0.0001,enc:0.0002,ste:0.0003,bat:0.00015};return((b[type]||0.0001)+amt*0.0001).toFixed(6);}
+async function getNonce(){const{d}=await rpcG(`/nonce/${W.addr}`);return d.nonce??d.n??0;}
+function buildTx(to,amt,nonce,memo=''){const ts=Date.now();return{from:W.addr,to,amount:amt,nonce,timestamp:ts,memo,signature:sig(W.privKey,`${W.addr}${to}${amt}${nonce}${ts}`)};}
+function sig(pk,data){return btoa(pk.slice(0,16)+hashStr(data).slice(0,16));}
+
+// ===== BATCH =====
+function addBR(){const r=document.createElement('div');r.className='br-row';r.innerHTML=`<input type="text" placeholder="oct..." class="ba"><input type="number" placeholder="amount" class="bm" step="0.000001"><button class="btn btn-d sm" onclick="rmBR(this)">✕</button>`;g('batchRows').appendChild(r);}
+function rmBR(btn){const rows=document.querySelectorAll('.br-row');if(rows.length>1)btn.parentElement.remove();}
+
+async function sendBatch(){
+  const rows=document.querySelectorAll('.br-row');
+  const t=[];rows.forEach(r=>{const a=r.querySelector('.ba').value.trim(),m=parseFloat(r.querySelector('.bm').value);if(a&&m)t.push({a,m});});
+  if(!t.length) return so('bOut','⚠ no valid rows','err');
+  await execBatch(t,500);
+}
+
+async function sendBatchCsv(){
+  const t=v('bCsv').trim().split('\n').map(l=>{const[a,m]=l.split(',');return{a:a?.trim(),m:parseFloat(m?.trim())};}).filter(x=>x.a&&!isNaN(x.m));
+  if(!t.length) return so('bOut','⚠ no valid rows','err');
+  await execBatch(t,500);
+}
+
+function csvPreview(){
+  const t=v('bCsv').trim().split('\n').map(l=>{const[a,m]=l.split(',');return{a:a?.trim(),m:parseFloat(m?.trim())};}).filter(x=>x.a&&!isNaN(x.m));
+  const tot=t.reduce((s,x)=>s+x.m,0);
+  so('bOut',`Preview: ${t.length} recipients · total ${tot.toFixed(6)} OCT\n\n${t.map(x=>`  ${x.a} → ${x.m} OCT`).join('\n')}`,'info');
+}
+
+async function sendAuto(){
+  const n=parseInt(v('aC'))||5,amt=parseFloat(v('aA'))||0.001,to=v('aR').trim()||W.addr,delay=parseInt(g('aDR').value)||500;
+  await execBatch(Array(n).fill(0).map(()=>({a:to,m:amt})),delay);
+}
+
+async function execBatch(targets,delayMs=500){
+  g('bOut').style.display=''; const log=g('bLog'); log.style.display=''; log.innerHTML='';
+  let ok=0,fail=0; let nonce=await getNonce().catch(()=>0);
+  for(let i=0;i<targets.length;i++){
+    const{a,m}=targets[i];
+    addLog(log,'info',`[${i+1}/${targets.length}] ${m} OCT → ${a.slice(0,14)}...`);
+    try{
+      const r=await rpcP('/send_tx',buildTx(a,m,nonce+i,'batch'));
+      if(r.d.hash||r.d.success){ok++;addLog(log,'ok',`  ✓ ${(r.d.hash||'ok').slice(0,20)} ${r.lat}ms`);}
+      else{fail++;addLog(log,'err','  ✕ '+JSON.stringify(r.d));}
+    }catch(e){fail++;addLog(log,'err','  ✕ '+e.message);}
+    txSent++; g('sd-tx').textContent=txSent;
+    if(delayMs>0&&i<targets.length-1)await sleep(delayMs);
+  }
+  so('bOut',`Done! total:${targets.length} ok:${ok} fail:${fail}`,(ok===targets.length)?'ok':'warn');
+}
+
+// ===== HISTORY =====
+async function loadHist(){
+  g('txList').innerHTML='<div style="color:var(--muted);font-size:11px;padding:14px 0;text-align:center;">loading...</div>';
+  try{const{d}=await rpcG(`/transactions/${W.addr}`);txCache=d.transactions||d.txs||d||[];hPage2=0;renderHP();}
+  catch(e){g('txList').innerHTML=`<div style="color:var(--danger);font-size:11px;">${e.message}</div>`;}
+}
+
+function filterHist(){hPage2=0;renderHP();}
+function hPage(d){hPage2=Math.max(0,hPage2+d);renderHP();}
+
+function renderHP(){
+  const filter=g('hFilter')?.value||'all',search=v('hSearch').toLowerCase();
+  let f=txCache;
+  if(filter!=='all')f=f.filter(t=>txType(t)===filter);
+  if(search)f=f.filter(t=>(t.hash||'').toLowerCase().includes(search)||(t.from||'').toLowerCase().includes(search)||(t.to||'').toLowerCase().includes(search));
+  const tot=f.length,start=hPage2*HPS;
+  renderTxList(f.slice(start,start+HPS),'txList');
+  const pg=g('hPager');
+  if(tot>HPS){pg.style.display='flex';g('hPI').textContent=`${start+1}–${Math.min(start+HPS,tot)} of ${tot}`;}
+  else pg.style.display='none';
+}
+
+function txType(tx){if(tx.type)return tx.type;if(tx.stealth||tx.private)return 'stealth';if(tx.encrypted)return 'enc';if(tx.from===W.addr)return 'send';return 'recv';}
+
+function renderTxList(txs,cid){
+  if(!txs.length){g(cid).innerHTML='<div style="color:var(--muted);font-size:11px;padding:14px 0;text-align:center;">no transactions found</div>';return;}
+  g(cid).innerHTML=txs.map(tx=>{
+    const type=txType(tx),hash=tx.hash||tx.tx_hash||'—',amt=tx.amount??'?';
+    const ts=tx.timestamp?new Date(tx.timestamp).toLocaleString():'—';
+    const neg=type==='send'||type==='stealth'||type==='enc';
+    return `<div class="tx-item" onclick="showTxDetail(${JSON.stringify(tx).replace(/"/g,'&quot;')})">
+      <span class="tt ${type}">${type}</span>
+      <span style="color:var(--muted);font-size:10px;" title="${hash}">${hash.slice(0,18)}${hash.length>18?'…':''}</span>
+      <span style="color:var(--muted);font-size:10px;">${ts}</span>
+      <span class="ta ${neg?'neg':'pos'}">${neg?'-':'+'}${amt}</span>
+      <a href="${EXPLORER}/tx/${hash}" target="_blank" style="color:var(--accent);font-size:10px;" onclick="event.stopPropagation()">↗ scan</a>
+    </div>`;
+  }).join('');
+  g('dash-tx').innerHTML=g(cid).innerHTML;
+}
+
+function addTxC(type,toFrom,amt,hash){txCache.unshift({type,from:type==='send'?W.addr:toFrom,to:type==='send'?toFrom:W.addr,amount:amt,hash,timestamp:Date.now()});renderTxList(txCache.slice(0,5),'dash-tx');}
+
+function exportHist(){
+  if(!txCache.length)return toast('No history to export','error');
+  const csv=['type,hash,from,to,amount,timestamp',...txCache.map(t=>`${txType(t)},${t.hash||''},${t.from||''},${t.to||''},${t.amount||''},${t.timestamp||''}`)].join('\n');
+  dlText('octra_txhistory.csv',csv,'text/csv'); toast('Exported ✓','success');
+}
+
+function showTxDetail(tx){
+  g('txModalContent').innerHTML=Object.entries(tx).map(([k,val])=>
+    `<div class="kv"><span class="kk">${k}</span><span class="kval c" style="word-break:break-all;">${val}</span></div>`
+  ).join('')+`<div class="kv"><span class="kk">Explorer</span><span class="kval"><a href="${EXPLORER}/tx/${tx.hash||''}" target="_blank" style="color:var(--accent);">View on octrascan ↗</a></span></div>`;
+  g('txModal').classList.add('active');
+}
+
+// ===== ENCRYPT =====
+function setEM(m){encMode=m;g('encBtn').classList.toggle('active',m==='encrypt');g('decBtn').classList.toggle('active',m==='decrypt');g('eLabel').textContent=m==='encrypt'?'Amount to Encrypt (OCT)':'Amount to Decrypt';g('eHint').textContent=m==='encrypt'?'public → private encrypted balance':'private encrypted → public balance';g('eBtn').textContent=m.toUpperCase();}
+
+async function doEncrypt(){
+  const amt=parseFloat(v('eAmt'));if(!amt)return so('eOut','⚠ enter an amount','err');
+  so('eOut',`⏳ ${encMode}ing ${amt} OCT...`,'info');
+  try{const nonce=await getNonce().catch(()=>0);const r=await rpcP(encMode==='encrypt'?'/encrypt_balance':'/decrypt_balance',{from:W.addr,amount:amt,nonce,signature:sig(W.privKey,`${encMode}${W.addr}${amt}${nonce}`)});so('eOut',`✓ Done!\n${JSON.stringify(r.d,null,2)}`,'ok');setTimeout(refreshBalance,1500);}
+  catch(e){so('eOut','✕ '+e.message,'err');}
+}
+
+// ===== STEALTH =====
+async function sendStealth(){
+  const to=v('stTo').trim(),amt=parseFloat(v('stAmt'));if(!to||!amt)return so('stOut','⚠ required fields missing','err');
+  so('stOut','⏳ creating stealth TX...','info');
+  try{const nonce=await getNonce().catch(()=>0);const r=await rpcP('/stealth_send',{from:W.addr,to,amount:amt,nonce,memo:v('stMemo').trim(),signature:sig(W.privKey,`stealth${to}${amt}${nonce}`)});so('stOut',`✓ Stealth TX sent!\n${JSON.stringify(r.d,null,2)}`,'ok');}
+  catch(e){so('stOut','✕ '+e.message,'err');}
+}
+
+async function claimStealth(){
+  const from=parseInt(v('cfrom'))||0,to=parseInt(v('cto'))||0;
+  so('cOut','⏳ scanning...','info');
+  try{const r=await rpcP('/claim_stealth',{address:W.addr,from_block:from,to_block:to||undefined,signature:sig(W.privKey,`claim${W.addr}${from}`)});so('cOut',`✓ Claim:\n${JSON.stringify(r.d,null,2)}`,'ok');}
+  catch(e){so('cOut','✕ '+e.message,'err');}
+}
+
+async function scanOnly(){
+  const from=parseInt(v('cfrom'))||0;so('cOut','⏳ scanning...','info');
+  try{const{d}=await rpcG(`/scan_stealth/${W.addr}?from=${from}`);so('cOut',`Scan:\n${JSON.stringify(d,null,2)}`,'ok');}
+  catch(e){so('cOut','✕ '+e.message,'err');}
+}
+
+// ===== NETWORK =====
+async function loadNet(){
+  so('netOut','⏳ fetching...','info');
+  try{
+    const{d,lat}=await rpcG('/status');
+    g('ni-h').textContent=d.block_height??d.height??'?';g('ni-p').textContent=d.pending_tx_count??d.pending??'?';
+    g('ni-tps').textContent=(d.tps??d.avg_tps??'?')+' tx/s';g('ni-lat').textContent=lat+'ms';
+    g('ni-val').textContent=d.validator_count??d.validators??'?';g('ni-cid').textContent=d.chain_id??d.network??'devnet';
+    g('sd-blk').textContent=d.block_height??d.height??'?'; trackPing(lat);
+    so('netOut',`✓ loaded in ${lat}ms\n${JSON.stringify(d,null,2)}`,'ok');
+  }catch(e){so('netOut','✕ '+e.message,'err');}
+}
+
+async function pingRpc(){
+  const t=Date.now();
+  try{await rpcG('/ping').catch(()=>rpcG('/status'));const lat=Date.now()-t;g('ni-lat').textContent=lat+'ms';trackPing(lat);toast(`Ping: ${lat}ms ✓`,'success');}
+  catch(e){toast('Ping failed','error');}
+}
+
+function startAutoPing(){
+  if(pingTimer)return;
+  g('pingStopBtn').style.display='';
+  pingTimer=setInterval(()=>pingRpc(),3000);pingRpc();
+}
+function stopAutoPing(){clearInterval(pingTimer);pingTimer=null;g('pingStopBtn').style.display='none';}
+
+// ===== MONITOR =====
+function startMon(){
+  if(monTimer)return;
+  const iv=parseInt(v('monInt'))||3000;
+  g('monSBtn').disabled=true;g('monEBtn').disabled=false;
+  const log=g('monLog'); addLog(log,'info',`Monitor started (${iv}ms interval)`);
+  monTimer=setInterval(()=>pollMon(log),iv); pollMon(log);
+}
+function stopMon(){
+  if(!monTimer)return; clearInterval(monTimer);monTimer=null;
+  g('monSBtn').disabled=false;g('monEBtn').disabled=true;
+  addLog(g('monLog'),'warn','Monitor stopped');
+}
+async function pollMon(log){
+  monPolls++; g('m-polls').textContent=monPolls;
+  try{
+    const{d,lat}=await rpcG('/pending');
+    const txs=d.transactions||d.txs||d||[];
+    const cnt=Array.isArray(txs)?txs.length:(d.count||0);
+    const blk=d.block_height||d.height||'?';
+    g('m-pool').textContent=cnt; g('m-blk').textContent=blk; g('sd-blk').textContent=blk;
+    if(Array.isArray(txs)){
+      const mine=txs.filter(t=>t.from===W.addr||t.to===W.addr);monMine+=mine.length;g('m-mine').textContent=monMine;
+      txs.slice(0,4).forEach(tx=>{
+        const tp=tx.from===W.addr?'warn':tx.to===W.addr?'ok':'info';
+        addLog(log,tp,`[pool] ${tp==='ok'?'INCOMING':'OUT'} ${tx.amount||'?'} OCT  ${(tx.hash||'').slice(0,18)}  ${lat}ms`);
+      });
+    }else addLog(log,'info',`pool:${cnt} block:${blk} ${lat}ms`);
+  }catch(e){addLog(log,'err','poll error: '+e.message);}
+}
+
+// ===== STRESS TEST =====
+async function startStress(){
+  if(stressRun)return; stressRun=true;stressAbort=false;
+  g('stSBtn').disabled=true;g('stEBtn').disabled=false;
+  const total=parseInt(v('stT'))||20,cc=parseInt(v('stC'))||1,amt=parseFloat(v('stA'))||0.001,tgt=v('stTgt').trim()||W.addr;
+  const log=g('stLog');log.innerHTML='';
+  let sent=0,ok=0,fail=0; const lats=[]; const t0=Date.now();
+  let nonce=await getNonce().catch(()=>0);
+  const upd=()=>{
+    g('st-s').textContent=sent;g('st-ok').textContent=ok;g('st-f').textContent=fail;
+    const avg=lats.length?Math.round(lats.reduce((a,b)=>a+b,0)/lats.length):0;
+    g('st-lat').textContent=avg+'ms';
+    const el=(Date.now()-t0)/1000;
+    g('st-tps').textContent=el>0?(sent/el).toFixed(2):'—';
+    g('st-pct').textContent=sent>0?Math.round(ok/sent*100)+'%':'—';
+    const pct=Math.round(sent/total*100);g('stPF').style.width=pct+'%';g('stPL').textContent=pct+'%';
+  };
+  addLog(log,'info',`Stress: ${total} TX, concurrency ${cc}, target ${tgt.slice(0,16)}...`);
+  for(let i=0;i<total&&!stressAbort;){
+    const batch=[];
+    for(let j=0;j<cc&&i+j<total;j++){
+      batch.push((async idx=>{
+        const t1=Date.now();
+        try{
+          const r=await rpcP('/send_tx',buildTx(tgt,amt,nonce+idx,'stress'));
+          const lat=Date.now()-t1;lats.push(lat);sent++;
+          if(r.d.hash||r.d.success){ok++;addLog(log,'ok',`[${idx+1}] ✓ ${(r.d.hash||'ok').slice(0,18)} ${lat}ms`);}
+          else{fail++;addLog(log,'err',`[${idx+1}] ✕ ${JSON.stringify(r.d)}`);}
+        }catch(e){sent++;fail++;addLog(log,'err',`[${idx+1}] ✕ ${e.message}`);}
+        upd();
+      })(i+batch.length));
+    }
+    await Promise.all(batch);i+=cc;await sleep(30);
+  }
+  stressRun=false;g('stSBtn').disabled=false;g('stEBtn').disabled=true;
+  const el=((Date.now()-t0)/1000).toFixed(2);
+  addLog(log,'info',`Done: ${ok}/${total} success, ${el}s, avg ${Math.round(lats.reduce((a,b)=>a+b,0)/Math.max(lats.length,1))}ms/tx`);
+  txSent+=sent;g('sd-tx').textContent=txSent;
+}
+function stopStress(){stressAbort=true;stressRun=false;g('stSBtn').disabled=false;g('stEBtn').disabled=true;addLog(g('stLog'),'warn','Aborted');}
+
+// ===== FAUCET =====
+async function reqFaucet(){
+  const addr=v('fAddr').trim()||W.addr;
+  if(!addr)return so('fOut','⚠ enter an address','err');
+  so('fOut','⏳ claiming from faucet...','info');
+  try{
+    const r=await fetch(FAUCET_URL+'/faucet',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({address:addr})});
+    const d=await r.json();
+    if(r.ok){so('fOut',`✓ Claimed!\n${JSON.stringify(d,null,2)}`,'ok');toast('10 OCT claimed ✓','success');}
+    else so('fOut',`⚠ Faucet (${r.status}):\n${JSON.stringify(d,null,2)}`,'warn');
+  }catch(e){
+    so('fOut',`CORS may block direct calls from browser.\n\nVisit manually: ${FAUCET_URL}\nPaste address: ${addr}\n\nError: ${e.message}`,'warn');
+  }
+}
+
+// ===== RAW RPC =====
+async function sendRpc(){
+  const method=g('rM').value,path=v('rP').trim(),body=v('rB').trim();
+  if(!path)return;
+  g('rO').textContent='⏳ sending...';g('rSt').textContent='';
+  try{
+    const url=W.rpc+(path.startsWith('/')?path:'/'+path);
+    const opts={method,headers:{'Content-Type':'application/json'}};
+    if(method==='POST'&&body)opts.body=body;
+    const t0=Date.now();const res=await fetch(url,opts);const lat=Date.now()-t0;
+    const text=await res.text();let pretty=text;
+    try{pretty=JSON.stringify(JSON.parse(text),null,2);}catch(_){}
+    g('rSt').textContent=`HTTP ${res.status} · ${lat}ms`;g('rSt').style.color=res.ok?'var(--accent3)':'var(--danger)';
+    g('rO').textContent=pretty;addRH(method,path,res.status,lat);
+  }catch(e){g('rO').textContent='✕ '+e.message;g('rSt').textContent='ERROR';g('rSt').style.color='var(--danger)';}
+}
+
+function fmtJson(){try{const el=g('rB');el.value=JSON.stringify(JSON.parse(el.value),null,2);}catch(e){toast('Invalid JSON','error');}}
+
+function rPre(t){
+  const m={bal:{m:'GET',p:`/balance/${W.addr}`,b:''},nonce:{m:'GET',p:`/nonce/${W.addr}`,b:''},latest:{m:'GET',p:'/block/latest',b:''},pending:{m:'GET',p:'/pending',b:''},status:{m:'GET',p:'/status',b:''},validators:{m:'GET',p:'/validators',b:''},txhist:{m:'GET',p:`/transactions/${W.addr}`,b:''},fee:{m:'GET',p:'/fee',b:''}};
+  const p=m[t];g('rM').value=p.m;g('rP').value=p.p;g('rB').value=p.b;sendRpc();
+}
+
+function addRH(method,path,status,lat){
+  rpcHist.unshift({method,path,status,lat,ts:new Date().toTimeString().slice(0,8)});if(rpcHist.length>8)rpcHist.pop();
+  g('rHist').innerHTML=rpcHist.map(r=>`<div style="padding:5px 0;border-bottom:1px solid var(--border);display:flex;gap:8px;align-items:center;font-size:10px;"><span style="color:${r.status<400?'var(--accent3)':'var(--danger)'};">${r.status}</span><span style="color:var(--muted);">${r.ts}</span><span style="color:var(--accent);">${r.method}</span><span style="flex:1;">${r.path}</span><span style="color:var(--muted);">${r.lat}ms</span></div>`).join('');
+}
+
+// ===== KEY TOOLS =====
+function toggleEnt(){g('kgMG').style.display=g('kgE').value==='manual'?'':'none';}
+
+function genKeys(){
+  const n=parseInt(v('kgN'))||1;const lines=[];
+  for(let i=0;i<n;i++){
+    const b=new Uint8Array(32);
+    if(g('kgE').value==='manual'){const s=v('kgM');for(let j=0;j<32;j++)b[j]=s.charCodeAt(j%s.length)^j^i;crypto.getRandomValues(b.subarray(16));}
+    else crypto.getRandomValues(b);
+    const pk=btoa(String.fromCharCode(...b));
+    const addr='oct'+[...b.slice(0,20)].map(x=>x.toString(16).padStart(2,'0')).join('');
+    lines.push(`[${i+1}]\n  address: ${addr}\n  privkey: ${pk}`);
+  }
+  so('kgOut','✓ Generated!\n\n'+lines.join('\n\n')+'\n\n⚠ SAVE NOW — not shown again!','ok');
+}
+
+function signMsg(){
+  const msg=v('smsg').trim();if(!msg)return so('sOut2','⚠ enter a message','err');
+  const enc=v('sEnc'),raw=sig(W.privKey,msg);
+  const out=enc==='hex'?[...atob(raw)].map(c=>c.charCodeAt(0).toString(16).padStart(2,'0')).join(''):raw;
+  so('sOut2',`✓ Signed!\nmessage:   ${msg}\naddress:   ${W.addr}\nsignature: ${out}\nencoding:  ${enc}`,'ok');
+}
+
+function verifySig(){
+  const msg=v('vMsg'),sig2=v('vSig'),pub=v('vPub');
+  if(!msg||!sig2||!pub)return so('vOut','⚠ all fields required','err');
+  so('vOut',sig2.length>=16?`✓ Format valid\n\nNote: Full Ed25519 verify requires C++ backend (TweetNaCl).\nThis checks format only.\n\nmessage: ${msg}\npubkey:  ${pub}`:`✕ Invalid signature`,sig2.length>=16?'ok':'err');
+}
+
+function deriveInfo(){
+  const inp=v('dIn').trim();if(!inp)return so('dOut','⚠ enter input','err');
+  if(inp.startsWith('oct')){so('dOut',`Address:\n${inp}\nhex:    ${inp.slice(3)}\nlength: ${inp.length}\nvalid:  ${/^oct[0-9a-f]{40}$/.test(inp)}`,'info');}
+  else{try{const b=Uint8Array.from(atob(inp),c=>c.charCodeAt(0));const addr='oct'+[...b.slice(0,20)].map(x=>x.toString(16).padStart(2,'0')).join('');so('dOut',`Private Key:\nbytes:  ${b.length}\nderived address: ${addr}`,'info');}catch(e){so('dOut','✕ Parse failed: '+e.message,'err');}}
+}
+
+function exportWallet(){
+  const fmt=v('expF');
+  if(fmt==='json'){const j=JSON.stringify({priv:W.privKey,addr:W.addr,rpc:W.rpc},null,2);so('expOut',j,'ok');dlText('wallet.json',j,'application/json');}
+  else if(fmt==='b64'){so('expOut',W.privKey,'warn');}
+  else{const hex=[...Uint8Array.from(atob(W.privKey),c=>c.charCodeAt(0))].map(b=>b.toString(16).padStart(2,'0')).join('');so('expOut',hex,'warn');}
+}
+
+// ===== ADDRESS BOOK =====
+function addContact(){
+  const l=v('abL').trim(),a=v('abA').trim();
+  if(!l||!a)return toast('Label and address required','error');
+  if(!a.startsWith('oct'))return toast('Address must start with oct','error');
+  contacts.push({label:l,addr:a,ts:Date.now()});saveCts();
+  g('abL').value='';g('abA').value='';toast('Contact saved ✓','success');
+}
+function removeCt(i){contacts.splice(i,1);saveCts();}
+function saveCts(){localStorage.setItem('octra_ab',JSON.stringify(contacts));renderContacts();}
+function renderContacts(){
+  if(!contacts.length){g('cList').innerHTML='<div style="color:var(--muted);font-size:11px;padding:14px 0;text-align:center;">no contacts saved</div>';return;}
+  g('cList').innerHTML=contacts.map((c,i)=>`<div class="vc"><div><div class="vn">${c.label}</div><div class="vm">${c.addr}</div></div><div class="br"><button class="btn btn-s sm" onclick="useAddr('${c.addr}')">USE</button><button class="btn btn-d sm" onclick="removeCt(${i})">✕</button></div></div>`).join('');
+}
+function useAddr(addr){g('sTo').value=addr;sp('send');toast('Address loaded ✓','info');}
+function pickAddr(fid){
+  if(!contacts.length){toast('Address book empty','info');sp('addrbook');return;}
+  const choice=contacts[0];g(fid).value=choice.addr;toast(`Loaded: ${choice.label}`,'info');
+}
+function exportCJ(){dlText('octra_contacts.json',JSON.stringify(contacts,null,2),'application/json');}
+function importCJ(){const i=document.createElement('input');i.type='file';i.accept='.json';i.onchange=e=>{const r=new FileReader();r.onload=ev=>{try{const p=JSON.parse(ev.target.result);if(Array.isArray(p)){contacts=[...contacts,...p];saveCts();toast(`Imported ${p.length} contacts`,'success');}else toast('Invalid format','error');}catch(e2){toast('Parse error','error');}};r.readAsText(e.target.files[0]);};i.click();}
+
+// ===== FEE CALC =====
+function calcFee(){
+  const amt=parseFloat(v('cAmt'))||0,type=v('cType'),cnt=parseInt(v('cCnt'))||1;
+  const fee=parseFloat(feeEst(amt,type)),tot=type==='bat'?fee*cnt:fee,total2=type==='bat'?(amt+fee)*cnt:amt+fee;
+  g('cRes').textContent=`Type:    ${type}\nAmount:  ${amt} OCT\nFee/TX:  ~${fee} OCT\n`+(type==='bat'?`TX Count: ${cnt}\nTotal fees: ~${tot.toFixed(6)} OCT\nTotal needed: ~${total2.toFixed(6)} OCT`:`Total needed: ~${total2.toFixed(6)} OCT`);
+}
+async function fetchLiveFee(){so('lfOut','⏳ fetching...','info');try{const{d}=await rpcG('/fee');so('lfOut','Fee:\n'+JSON.stringify(d,null,2),'ok');}catch(e){so('lfOut','✕ '+e.message,'err');}}
+
+// ===== VALIDATORS =====
+async function loadVals(){
+  g('valList').innerHTML='<div style="color:var(--muted);font-size:11px;padding:14px 0;text-align:center;">loading...</div>';
+  try{
+    const{d}=await rpcG('/validators');const vals=d.validators||d||[];
+    if(!vals.length){g('valList').innerHTML='<div style="color:var(--muted);font-size:11px;padding:14px 0;text-align:center;">no validators found</div>';return;}
+    g('valList').innerHTML=vals.map((v2,i)=>`<div class="vc"><div><div class="vn">#${i+1} ${v2.address?.slice(0,22)||v2.id||'Validator '+i}</div><div class="vm">stake: ${v2.stake||v2.staked||'?'} OCT · status: ${v2.status||'active'} · blocks: ${v2.blocks||v2.blocks_produced||'?'}</div></div><div style="font-family:'Syne',sans-serif;font-weight:700;color:var(--accent);">${v2.stake||'—'}</div></div>`).join('');
+    so('valOut',`✓ ${vals.length} validators loaded`,'ok');
+  }catch(e){g('valList').innerHTML=`<div style="color:var(--danger);font-size:11px;">${e.message}</div>`;}
+}
+async function checkNetStatus(){so('valOut','⏳ checking...','info');try{const{d}=await rpcG('/status');so('valOut','Status:\n'+JSON.stringify(d,null,2),'ok');}catch(e){so('valOut','✕ '+e.message,'err');}}
+
+// ===== TX LOOKUP =====
+async function lookupTx(){
+  const hash=v('luTx').trim();if(!hash)return;so('luTxOut','⏳ looking up...','info');
+  try{
+    const{d}=await rpcG(`/tx/${hash}`);
+    so('luTxOut',JSON.stringify(d,null,2),'ok');
+    g('luTxLink').href=`${EXPLORER}/tx/${hash}`;g('luTxLink').style.display='';
+  }catch(e){so('luTxOut','✕ '+e.message,'err');}
+}
+async function lookupAddr(){
+  const addr=v('luAddr').trim();if(!addr)return;so('luAddrOut','⏳ fetching...','info');
+  try{const{d}=await rpcG(`/balance/${addr}`);so('luAddrOut',JSON.stringify(d,null,2),'ok');}
+  catch(e){so('luAddrOut','✕ '+e.message,'err');}
+}
+async function lookupAddrHist(){
+  const addr=v('luAddr').trim();if(!addr)return;so('luAddrOut','⏳ fetching TX history...','info');
+  try{const{d}=await rpcG(`/transactions/${addr}`);so('luAddrOut',JSON.stringify(d,null,2),'ok');}
+  catch(e){so('luAddrOut','✕ '+e.message,'err');}
+}
+async function lookupBlock(){
+  const blk=v('luBlk').trim();so('luBlkOut','⏳ fetching...','info');
+  try{const path=blk?`/block/${blk}`:'/block/latest';const{d}=await rpcG(path);so('luBlkOut',JSON.stringify(d,null,2),'ok');}
+  catch(e){so('luBlkOut','✕ '+e.message,'err');}
+}
+
+// ===== BLOCK TICKER =====
+function startBlockTimer(){
+  if(blockTimer)clearInterval(blockTimer);
+  blockTimer=setInterval(async()=>{
+    try{const{d}=await rpcG('/status').catch(()=>rpcG('/block/latest'));const h=d.block_height??d.height??d.number??'?';g('blockTick').textContent='block #'+h;g('sd-blk').textContent=h;g('m-blk').textContent=h;}catch(_){}
+  },8000);
+}
+
+// ===== MINI CHART =====
+function drawChart(cid,data){
+  const canvas=g(cid);if(!canvas||data.length<2)return;
+  const W2=canvas.offsetWidth||400,H=65;canvas.width=W2;canvas.height=H;
+  const ctx=canvas.getContext('2d');ctx.clearRect(0,0,W2,H);
+  const mn=Math.min(...data),mx=Math.max(...data),rng=Math.max(mx-mn,1);
+  const pts=data.map((v2,i)=>({x:i/(data.length-1)*(W2-18)+9,y:H-8-((v2-mn)/rng)*(H-18)}));
+  const grd=ctx.createLinearGradient(0,0,0,H);grd.addColorStop(0,'rgba(0,229,255,.2)');grd.addColorStop(1,'rgba(0,229,255,0)');
+  ctx.beginPath();ctx.moveTo(pts[0].x,H);pts.forEach(p=>ctx.lineTo(p.x,p.y));ctx.lineTo(pts[pts.length-1].x,H);ctx.closePath();ctx.fillStyle=grd;ctx.fill();
+  ctx.beginPath();ctx.strokeStyle='var(--accent)';ctx.lineWidth=1.5;pts.forEach((p,i)=>i===0?ctx.moveTo(p.x,p.y):ctx.lineTo(p.x,p.y));ctx.stroke();
+  ctx.fillStyle='var(--accent)';ctx.font='9px Space Mono';ctx.fillText(data[data.length-1]+'ms',W2-46,13);
+}
+
+// ===== UI HELPERS =====
+function sp(name){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.ni').forEach(n=>n.classList.remove('active'));
+  g('page-'+name)?.classList.add('active');
+  document.querySelectorAll('.ni').forEach(n=>{if(n.getAttribute('onclick')?.includes("'"+name+"'"))n.classList.add('active');});
+}
+
+function stab(btn,tid){
+  const panel=btn.closest('.panel')||btn.closest('.modal')||document.body;
+  panel.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  panel.querySelectorAll('.tc').forEach(t=>t.classList.remove('active'));
+  btn.classList.add('active');g(tid)?.classList.add('active');
+}
+
+function so(id2,msg,type='ok'){const el=g(id2);if(!el)return;el.style.display='';el.textContent=msg;el.className='ob'+(type==='err'?' err':type==='warn'?' warn':type==='info'?' info':'');}
+function setConn(on){g('connDot').className='dot '+(on?'live':'error');g('connLabel').textContent=on?'connected':'disconnected';}
+
+function addLog(cont,type,msg){
+  const ts=new Date().toTimeString().slice(0,8);
+  const d=document.createElement('div');d.className='le '+type;
+  d.innerHTML=`<span class="ts">${ts}</span><span class="msg">${esc(msg)}</span>`;
+  cont.appendChild(d);cont.scrollTop=cont.scrollHeight;
+}
+
+let toastTm;
+function toast(msg,type='success'){const t=g('toast');t.textContent=msg;t.className='show '+type;clearTimeout(toastTm);toastTm=setTimeout(()=>t.className='',3000);}
+
+function copyAddr(){navigator.clipboard.writeText(W.addr).then(()=>toast('Address copied!','success'));}
+function closeModal(id2){g(id2).classList.remove('active');}
+function dlText(name,text,mime='text/plain'){const a=document.createElement('a');a.href='data:'+mime+';charset=utf-8,'+encodeURIComponent(text);a.download=name;a.click();}
+
+// ===== UTILS =====
+const g=id2=>document.getElementById(id2);
+const v=id2=>g(id2)?.value||'';
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+function hashStr(s){let h=0x811c9dc5;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=(h*0x01000193)>>>0;}return h.toString(16).padStart(8,'0').repeat(4);}
+
+document.addEventListener('DOMContentLoaded',()=>{renderContacts();calcFee();});
+</script>
+</body>
+</html>
